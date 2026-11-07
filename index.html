@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>タイマンじゃ！！</title>
+<meta name="description" content="最大100人で遊べる、観戦型バトルロイヤル抽選ゲーム。">
+<meta name="theme-color" content="#282139">
+<link rel="icon" href="brand/favicon.ico" sizes="16x16 32x32 48x48">
+<link rel="icon" type="image/png" sizes="32x32" href="brand/favicon-32.png">
+<link rel="apple-touch-icon" sizes="180x180" href="brand/apple-touch-icon.png">
+<link rel="manifest" href="brand/site.webmanifest">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="タイマンじゃ！！">
+<meta property="og:title" content="タイマンじゃ！！">
+<meta property="og:description" content="最大100人で遊べる、観戦型バトルロイヤル抽選ゲーム。">
+<link rel="canonical" href="https://taimanja.com/">
+<meta property="og:url" content="https://taimanja.com/">
+<meta property="og:image" content="https://taimanja.com/brand/og-image.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<style>
+:root{--bg:#fff6e4;--ink:#282139;--acc:#ffc760;--bad:#c62828}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Hiragino Sans","Yu Gothic UI",Meiryo,sans-serif}
+header{background:var(--bg);padding:10px 16px;text-align:center}
+header img{height:clamp(40px,11vw,64px);max-width:100%}
+main{max-width:960px;margin:0 auto}
+#stage{background:#000}
+#frame{position:relative;width:100%;aspect-ratio:16/9;container-type:inline-size;margin:auto;overflow:hidden;background:#000}
+#stage:fullscreen,#stage.pfs{display:flex;align-items:center;justify-content:center;width:100vw;height:100vh}
+#stage.pfs{position:fixed;inset:0;z-index:50}
+#stage:fullscreen #frame,#stage.pfs #frame{width:min(100vw,177.78vh)}
+canvas{width:100%;height:100%;display:block}
+button{font:inherit;font-weight:700;color:var(--ink);border:2px solid var(--ink);border-radius:12px;background:var(--acc);cursor:pointer}
+button:disabled{opacity:.45;cursor:not-allowed}
+.sec{background:#fff}
+#fs,#quit{position:absolute;font-size:max(13px,2.6cqw);padding:.4em .8em;min-height:36px}
+#fs{top:2cqw;right:2cqw}#quit{bottom:2cqw;left:2cqw}
+#alive{position:absolute;top:2cqw;left:2cqw;font-size:max(18px,6.5cqw);font-weight:900;color:#fff;-webkit-text-stroke:.4cqw var(--ink);paint-order:stroke fill;text-shadow:0 .5cqw 0 var(--ink);line-height:1}
+#banner{position:absolute;left:0;right:0;top:32%;text-align:center;font-size:12cqw;font-weight:900;color:#fff;-webkit-text-stroke:.8cqw var(--ink);paint-order:stroke fill;text-shadow:0 1cqw 0 var(--ink);pointer-events:none;opacity:0}
+#banner.on{animation:pop .9s ease-out both}
+@keyframes pop{0%{transform:scale(.3);opacity:0}25%{transform:scale(1.15);opacity:1}100%{transform:scale(1);opacity:1}}
+#final{position:absolute;left:2cqw;right:2cqw;bottom:2cqw;display:flex;align-items:center;justify-content:center;gap:2cqw;font-size:max(13px,4.6cqw);font-weight:900;color:#fff;-webkit-text-stroke:.3cqw var(--ink);paint-order:stroke fill;text-shadow:0 .4cqw 0 var(--ink)}
+#final span.n{max-width:42%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#log{position:absolute;left:2cqw;bottom:2cqw;color:#fff;font-size:max(10px,2cqw);text-shadow:0 1px 3px #000;pointer-events:none;max-width:60%}
+#loading{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:#282139;color:#fff;font-weight:700;font-size:max(14px,4cqw)}
+#win{position:absolute;inset:0;background:#282139c8;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:1.5cqw;padding:0 4cqw}
+#win .t{font-size:max(14px,5cqw);font-weight:900;color:var(--acc)}
+#win .nm{font-size:max(22px,9cqw);font-weight:900;color:#fff;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#win .sub{font-size:max(11px,2.4cqw);color:#fff;opacity:.85}
+#win .row{display:flex;gap:2cqw;width:100%;justify-content:center}
+#win button{font-size:max(13px,2.8cqw);padding:.5em .9em;min-height:44px}
+[hidden]{display:none!important}
+.badge{display:inline-flex;align-items:center;justify-content:center;min-width:1.6em;height:1.6em;padding:0 .35em;border-radius:999px;color:#fff;font-weight:700;border:.15em solid #fff;margin-right:.3em;font-size:.7em;-webkit-text-stroke:0;text-shadow:none}
+#prep{padding:20px 16px 48px}
+#prep h2{margin:0 0 4px;font-size:22px}
+.hint{margin:0 0 10px;opacity:.75}
+textarea{width:100%;height:220px;padding:12px;font:inherit;font-size:16px;line-height:1.5;border:2px solid var(--ink);border-radius:12px;background:#fff;color:var(--ink);resize:vertical}
+#count{font-weight:900;margin:10px 0 2px;font-size:22px}
+#count.bad,#msg.bad{color:var(--bad)}
+#msg{min-height:1.5em;margin:2px 0 12px;font-size:14px}
+#msg.warn{color:#9a5b00}
+#start{width:100%;font-size:24px;padding:16px;min-height:60px}
+details{margin-top:18px}
+summary{cursor:pointer;font-weight:700;padding:8px 0}
+.opt{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.opt input{width:90px;padding:8px;font-size:16px;border:2px solid var(--ink);border-radius:10px}
+.opt button{font-size:14px;padding:8px 12px;min-height:40px}
+.opt button.on{background:var(--acc)}
+</style>
+</head>
+<body>
+<header><img src="brand/wordmark.svg" alt="タイマンじゃ！！"></header>
+<main>
+  <div id="stage"><div id="frame">
+    <canvas id="cv" role="img" aria-label="試合画面"></canvas>
+    <div id="alive" hidden aria-live="polite"></div>
+    <button id="fs" class="sec" aria-label="全画面表示に切り替え">全画面</button>
+    <div id="banner" aria-live="assertive"></div>
+    <div id="log"></div>
+    <div id="final" hidden></div>
+    <button id="quit" class="sec" hidden>やめる</button>
+    <div id="loading">読み込み中…</div>
+    <div id="win" hidden>
+      <div class="t">🎉 当選者 🎉</div>
+      <div class="nm" id="wname"></div>
+      <div class="sub" id="wsub"></div>
+      <div class="row"><button id="again">同じメンバーでもう一度</button><button id="edit" class="sec">参加者を編集</button></div>
+    </div>
+  </div></div>
+  <section id="prep">
+    <h2>参加者の名前</h2>
+    <p class="hint">1行に1人ずつ、名前を貼り付けてください（最大100人）</p>
+    <textarea id="names" placeholder="山田太郎&#10;佐藤花子&#10;…" aria-label="参加者の名前（1行に1人）"></textarea>
+    <div id="count" aria-live="polite">参加者 0／100人</div>
+    <div id="msg"></div>
+    <button id="start" disabled>読み込み中…</button>
+    <details>
+      <summary>設定：決着までの時間</summary>
+      <div class="opt"><input id="dur" type="number" min="1" max="600" step="1" value="30" aria-label="決着までの時間（秒）"> 秒<span id="presets"></span></div>
+    </details>
+  </section>
+</main>
+<script src="manifest.js"></script>
+<script src="game.js"></script>
+</body>
+</html>

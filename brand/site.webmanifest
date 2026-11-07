@@ -1,0 +1,22 @@
+{
+  "name": "タイマンじゃ！！",
+  "short_name": "タイマンじゃ！！",
+  "lang": "ja",
+  "description": "最大100人で遊べる、観戦型バトルロイヤル抽選ゲーム。",
+  "start_url": "/",
+  "display": "standalone",
+  "theme_color": "#282139",
+  "background_color": "#fff6e4",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
