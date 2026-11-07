@@ -14,6 +14,41 @@ const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',
 const hue=no=>`hsl(${(no*137.5)%360} 70% 42%)`;
 const badge=no=>`<span class="badge" style="background:${hue(no)}">${no}</span>`;
 
+// ---- 音（WebAudio。BGMなし）----
+// [ファイル, 基準音量]。素材ごとの元の音量差（ボイスは小さく、落下の叫びは大きい）をここで揃える
+const SFX={gongS:['gong-start.mp3',1],gongE:['gong-end.mp3',1],punch:['s-punch.mp3',.5],slash:['s-slash.mp3',.5],guard:['s-guard.mp3',.45],brawl:['s-brawl.mp3',.35],
+  ei:['v-ei.mp3',.9],itte:['v-itte.mp3',.9],kya:['v-kya.mp3',.9],kuoo:['v-kuoo.mp3',1],uwaa:['v-uwaa.mp3',1],fall:['v-fall.wav',.35]};
+const WSND={'frying-pan':'guard','giant-leek':'slash','squeaky-hammer':'punch','zabuton':'punch','mop':'slash','rubber-chicken':'slash'};
+// 連続再生の最短間隔(秒)と同時再生数の上限。100人の乱闘でも音が団子にならないようにする
+const LIM={hit:[.05,4],voice:[.12,3],scream:[1.2,1]},cur={hit:0,voice:0,scream:0},lastT={hit:-9,voice:-9,scream:-9};
+let AC,bus,mst,out,snd=true;const BUF={};
+try{snd=localStorage.getItem('taimanja.snd')!=='0'}catch(e){}
+try{ // bus(打撃・ボイス。ゴング時に絞る) → mst(リミッター) ← ゴング直結 → out(オン/オフ)
+  AC=new(window.AudioContext||window.webkitAudioContext)();
+  mst=AC.createDynamicsCompressor();mst.threshold.value=-10;mst.knee.value=10;mst.ratio.value=6;
+  out=AC.createGain();out.gain.value=snd?1:0;bus=AC.createGain();bus.connect(mst);mst.connect(out);out.connect(AC.destination);
+}catch(e){AC=null}
+const loadSnd=()=>Promise.all(AC?Object.entries(SFX).map(([k,[f]])=>fetch('audio/'+f).then(r=>r.arrayBuffer()).then(a=>AC.decodeAudioData(a)).then(b=>{BUF[k]=b}).catch(()=>{})):[]);
+function unlock(){ // 「バトル開始」などのタップ中に呼ぶ（スマホは最初のタップで解禁される）
+  if(!AC)return;if(AC.state!=='running')AC.resume();
+  const s=AC.createBufferSource();s.buffer=AC.createBuffer(1,1,22050);s.connect(AC.destination);s.start(0);
+}
+function play(k,cls,vol=1,rate=1,dst=bus,slice){
+  if(!snd||!AC||!BUF[k]||AC.state!=='running')return;
+  const t=AC.currentTime;
+  if(cls){const[gap,max]=LIM[cls];if(t-lastT[cls]<gap||cur[cls]>=max)return;lastT[cls]=t;cur[cls]++}
+  const s=AC.createBufferSource(),g=AC.createGain(),v=SFX[k][1]*vol;s.buffer=BUF[k];s.playbackRate.value=rate;
+  if(slice){g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(v,t+.15);g.gain.setValueAtTime(v,t+slice-.6);g.gain.linearRampToValueAtTime(0,t+slice)}else g.gain.value=v;
+  s.connect(g);g.connect(dst);s.onended=()=>{if(cls)cur[cls]--};slice?s.start(t,0,slice):s.start(t);
+}
+function gong(k){ // ゴングはリミットなし・直結。鳴っている間は乱闘の音を絞って埋もれさせない
+  play(k,null,1,1,mst);
+  if(!AC)return;const t=AC.currentTime;bus.gain.cancelScheduledValues(t);bus.gain.setValueAtTime(.3,t);bus.gain.linearRampToValueAtTime(1,t+1.8);
+}
+function updSnd(){const b=$('snd');b.textContent=snd?'🔊 効果音 オン':'🔇 効果音 オフ';b.setAttribute('aria-pressed',snd)}
+$('snd').onclick=()=>{snd=!snd;try{localStorage.setItem('taimanja.snd',snd?'1':'0')}catch(e){}if(out)out.gain.value=snd?1:0;updSnd();unlock()};
+updSnd();
+
 // ---- 入力欄 ----
 let names=[],loaded=false;
 const getDur=()=>{const v=Number($('dur').value);return Number.isInteger(v)&&v>=1&&v<=DMAX?v:0};
@@ -43,18 +78,18 @@ try{const d=localStorage.getItem('taimanja.dur');if(d)$('dur').value=d}catch(e){
 const img=src=>new Promise(r=>{const i=new Image();i.onload=()=>r(i);i.onerror=()=>r(i);i.src=src});
 let IMG;
 async function load(){
-  let done=0;const tot=CHS.length*6+WPS.length+STG.length;
+  const sp=loadSnd();let done=0;const tot=CHS.length*6+WPS.length+STG.length;
   const L=src=>img(src).then(i=>{$('loading').textContent=`読み込み中… ${Math.round(++done/tot*100)}％`;return i});
   IMG={
     ch:await Promise.all(CHS.map(c=>Promise.all(POSES.map(p=>L(c.poses[p]))).then(a=>Object.fromEntries(POSES.map((p,i)=>[p,a[i]]))))),
     wp:await Promise.all(WPS.map(w=>L(w.image))),
     st:await Promise.all(STG.map(s=>L(s.image))),
   };
-  loaded=true;$('loading').hidden=true;$('start').textContent='バトル開始';parse();
+  await sp;loaded=true;$('loading').hidden=true;$('start').textContent='バトル開始';parse();
 }
 
 // ---- 状態 ----
-let F=[],phase='prep',T=0,W=0,D=30,cnt=3,pops=[],conf=[],cam={x:LW/2,y:LH/2,s:1},winner=null,finalShown=false,stg=0,SZ=130;
+let F=[],phase='prep',T=0,W=0,D=30,cnt=3,pops=[],conf=[],cam={x:LW/2,y:LH/2,s:1},winner=null,finalShown=false,brawled=false,stg=0,SZ=130;
 const cv=$('cv'),ctx=cv.getContext('2d');
 let kk=1,U=1; // kk: 論理座標→実ピクセル, U: CSS 1px あたりの論理座標
 new ResizeObserver(()=>{const d=Math.min(2,devicePixelRatio||1),w=$('frame').clientWidth;cv.width=Math.round(w*d);cv.height=Math.round(w*d*9/16);kk=cv.width/LW;U=LW/w}).observe($('frame'));
@@ -84,7 +119,7 @@ function newMatch(){
     return mk(i+1,name,i===monkey?MONKEY:OTHER[ct[ci++]],wt[i],x,y,{hp:Math.round(7*Math.min(6,Math.max(1,D/15))),win:i===win,dir:x<LW/2?1:-1,spd:SZ*(.95+.3*rf())});
   });
   winner=F[win];
-  T=W=0;cnt=D<10?1:3;pops=[];conf=[];phase='count';finalShown=false;cam={x:LW/2,y:LH/2,s:1};
+  T=W=0;cnt=D<10?1:3;pops=[];conf=[];phase='count';finalShown=brawled=false;cam={x:LW/2,y:LH/2,s:1};
   $('log').innerHTML='';$('win').hidden=true;$('rank').hidden=true;$('final').hidden=true;$('banner').style.opacity=0;$('banner').textContent='';
   $('prep').hidden=true;$('alive').hidden=false;$('quit').hidden=false;updAlive();
 }
@@ -96,11 +131,15 @@ function hit(a,b){
   const d=Math.hypot(b.x-a.x,b.y-a.y)||1,m=SZ/130;
   b.hitT=.35;b.kx=(b.x-a.x)/d*300*m;b.ky=(b.y-a.y)/d*120*m;b.state='idle';
   if(pops.length<25&&(F.length<20||rf()<.4))pops.push({x:b.x,y:b.y-SZ*.7,t:.7,s:SND[WPS[a.wp].id]});
+  play(WSND[WPS[a.wp].id],'hit',1,.92+rf()*.16);
+  const lethal=!b.win&&b.hp<=1; // とどめの一撃（と、ときどき普通の一撃）は強打のボイス
+  if(lethal||rf()<.06)play('kuoo','voice',1,.95+rf()*.1);else if(rf()<.35)play(rf()<.5?'itte':'kya','voice',1,.92+rf()*.2);
   if(b.win)return; // 勝者は抽選で決定済み。戦闘では脱落しない
   if(--b.hp<=0){
     b.rk=aliveN();b.alive=false;b.koT=0;b.kv=[(b.x-a.x)/d*380*m,(b.y-a.y)/d*100*m-40*m];
     const l=$('log');l.insertAdjacentHTML('beforeend',`<div>${esc(b.name)} 脱落！</div>`);while(l.children.length>3)l.firstChild.remove();
     updAlive();
+    if(rf()<(aliveN()<=10?.5:.06))play(rf()<.7?'uwaa':'fall','scream',1,1); // 叫びは終盤の目立つ場面中心
   }
 }
 function forceFinish(){ // 制限時間：残りの敗者をまとめて吹っ飛ばす
@@ -116,12 +155,13 @@ function forceFinish(){ // 制限時間：残りの敗者をまとめて吹っ�
 function step(dt){
   T+=dt;
   if(phase==='prep'){for(const f of F)f.ph+=dt*12;return}
-  if(phase==='count'){cnt-=dt;const k=Math.ceil(cnt);if(k>0&&$('banner').textContent!==String(k))banner(String(k));if(cnt<=0){phase='fight';banner('スタート！',900)}return}
+  if(phase==='count'){cnt-=dt;const k=Math.ceil(cnt);if(k>0&&$('banner').textContent!==String(k))banner(String(k));if(cnt<=0){phase='fight';banner('スタート！',900);gong('gongS')}return}
   for(const f of F)if(f.koT>=0){f.koT+=dt;f.x+=f.kv[0]*dt;f.y+=f.kv[1]*dt}
   pops=pops.filter(p=>(p.t-=dt)>0);
   if(phase!=='fight')return;
   const A=F.filter(f=>f.alive);
-  if(A.length===1){phase='end';winner=A[0];$('final').hidden=true;$('alive').hidden=true;$('quit').hidden=true;setTimeout(showWin,D<5?600:1500);confetti();return}
+  if(A.length===1){phase='end';gong('gongE');winner=A[0];$('final').hidden=true;$('alive').hidden=true;$('quit').hidden=true;setTimeout(showWin,D<5?600:1500);confetti();return}
+  if(!brawled&&D>=5&&F.length>10&&A.length<=10){brawled=true;play('brawl',null,1,1,bus,2.6)} // 残り10人でカメラが寄る場面の盛り上げ
   if(A.length===2&&!finalShown){finalShown=true;$('log').innerHTML='';$('final').innerHTML=`<span class="n">${badge(A[0].no)}${esc(A[0].name)}</span><span>VS</span><span class="n">${badge(A[1].no)}${esc(A[1].name)}</span>`;$('final').hidden=false;if(D>=5)banner('決勝！',1500)}
   const R=SZ*.6,sep=SZ*.3,b=bounds();
   for(const f of A){
@@ -137,7 +177,7 @@ function step(dt){
       if(f.t>=.45){f.state='run';f.cd=.4+rf()*.5}
     }else{
       f.cd-=dt;
-      if(d<=R&&f.cd<=0){f.state='attack';f.t=0;f.hitDone=false}
+      if(d<=R&&f.cd<=0){f.state='attack';f.t=0;f.hitDone=false;if(rf()<.3)play('ei','voice',.8,.92+rf()*.2)}
       else{f.state='run';if(d>R*.7){f.x+=ux*f.spd*dt;f.y+=uy*f.spd*dt/2}}
     }
   }
@@ -250,8 +290,8 @@ function toPrep(){
   prepScene();
   $('prep').hidden=false;$('alive').hidden=true;$('quit').hidden=true;$('win').hidden=true;$('rank').hidden=true;$('final').hidden=true;$('log').innerHTML='';$('banner').style.opacity=0;
 }
-$('start').onclick=()=>{parse();if(!$('start').disabled)newMatch()};
-$('again').onclick=newMatch;
+$('start').onclick=()=>{unlock();parse();if(!$('start').disabled)newMatch()};
+$('again').onclick=()=>{unlock();newMatch()};
 $('edit').onclick=$('quit').onclick=toPrep;
 
 // ---- 全画面（iPhone など非対応端末は画面いっぱい表示で代用）----

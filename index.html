@@ -34,8 +34,9 @@ canvas{width:100%;height:100%;display:block}
 button{font:inherit;font-weight:700;color:var(--ink);border:2px solid var(--ink);border-radius:12px;background:var(--acc);cursor:pointer}
 button:disabled{opacity:.45;cursor:not-allowed}
 .sec{background:#fff}
-#fs,#quit{position:absolute;font-size:max(13px,2.6cqw);padding:.4em .8em;min-height:36px}
-#fs{top:2cqw;right:2cqw}#quit{bottom:2cqw;left:2cqw}
+#fs,#snd,#quit{font-size:max(13px,2.6cqw);padding:.4em .8em;min-height:36px}
+#tools{position:absolute;top:2cqw;right:2cqw;display:flex;gap:1.5cqw;z-index:3}
+#quit{position:absolute;bottom:2cqw;left:2cqw}
 #alive{position:absolute;top:2cqw;left:2cqw;font-size:max(18px,6.5cqw);font-weight:900;color:#fff;-webkit-text-stroke:.4cqw var(--ink);paint-order:stroke fill;text-shadow:0 .5cqw 0 var(--ink);line-height:1}
 #banner{position:absolute;left:0;right:0;top:32%;text-align:center;font-size:12cqw;font-weight:900;color:#fff;-webkit-text-stroke:.8cqw var(--ink);paint-order:stroke fill;text-shadow:0 1cqw 0 var(--ink);pointer-events:none;opacity:0}
 #banner.on{animation:pop .9s ease-out both}
@@ -83,7 +84,7 @@ summary{cursor:pointer;font-weight:700;padding:8px 0}
   <div id="stage"><div id="frame">
     <canvas id="cv" role="img" aria-label="試合画面"></canvas>
     <div id="alive" hidden aria-live="polite"></div>
-    <button id="fs" class="sec" aria-label="全画面表示に切り替え">全画面</button>
+    <div id="tools"><button id="snd" class="sec" aria-pressed="true">🔊 効果音 オン</button><button id="fs" class="sec" aria-label="全画面表示に切り替え">全画面</button></div>
     <div id="banner" aria-live="assertive"></div>
     <div id="log"></div>
     <div id="final" hidden></div>
