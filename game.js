@@ -293,6 +293,7 @@ function toPrep(){
 $('start').onclick=()=>{unlock();parse();if(!$('start').disabled)newMatch()};
 $('again').onclick=()=>{unlock();newMatch()};
 $('edit').onclick=$('quit').onclick=toPrep;
+$('reset').onclick=()=>{if(!confirm('入力した参加者をすべて消して、最初の画面に戻します。よろしいですか？'))return;$('names').value='';parse();toPrep()};
 
 // ---- 全画面（iPhone など非対応端末は画面いっぱい表示で代用）----
 const st=$('stage');
