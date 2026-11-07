@@ -27,9 +27,17 @@ header img{height:clamp(40px,11vw,64px);max-width:100%}
 main{max-width:960px;margin:0 auto}
 #stage{background:#000}
 #frame{position:relative;width:100%;aspect-ratio:16/9;container-type:inline-size;margin:auto;overflow:hidden;background:#000}
-#stage:fullscreen,#stage.pfs{display:flex;align-items:center;justify-content:center;width:100vw;height:100vh}
-#stage.pfs{position:fixed;inset:0;z-index:50}
-#stage:fullscreen #frame,#stage.pfs #frame{width:min(100vw,177.78vh)}
+#stage{--sw:100vw;--sh:100vh}
+@supports(height:100dvh){#stage{--sh:100dvh}}
+#stage:fullscreen,#stage.pfs{display:flex;align-items:center;justify-content:center;width:var(--sw);height:var(--sh)}
+#stage.pfs{position:fixed;top:0;left:0;z-index:50}
+#stage:fullscreen #frame,#stage.pfs #frame{width:min(var(--sw),calc(var(--sh)*1.7778))}
+body:has(#stage.pfs){overflow:hidden}
+/* スマホを縦に持っているとき：画面全体を横向きに回して表示（持ち替えると自動で通常表示に戻る） */
+@media (orientation:portrait){
+  #stage.pfs{--sw:100vh;--sh:100vw;transform-origin:0 0;transform:translateX(100vw) rotate(90deg)}
+}
+@media (orientation:portrait){@supports(height:100dvh){#stage.pfs{--sw:100dvh}}}
 canvas{width:100%;height:100%;display:block}
 button{font:inherit;font-weight:700;color:var(--ink);border:2px solid var(--ink);border-radius:12px;background:var(--acc);cursor:pointer}
 button:disabled{opacity:.45;cursor:not-allowed}

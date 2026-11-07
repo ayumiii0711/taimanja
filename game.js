@@ -212,22 +212,43 @@ function drawF(f){
   }
   ctx.restore();
 }
-function labels(list,big){
-  // 前面（y が大きい）から順に置き、重なる名前は間引く。番号の丸は常に表示
-  const boxes=[],small=aliveN()>12,fs=(big?20:small?10:13)*U,r=fs*.95;
-  ctx.font=`700 ${fs}px sans-serif`;ctx.textBaseline='middle';
-  const mx=small?5:10;
-  for(const f of list.slice().sort((a,b)=>b.y-a.y)){
-    const sx=(f.x-cam.x)*cam.s+LW/2,sy=(f.y-cam.y)*cam.s+LH/2+4*U;
-    const nm=f.name.length>mx?f.name.slice(0,mx)+'…':f.name;
-    const bw=ctx.measureText(f.no).width,bd=Math.max(r*2,bw+fs*.8),tw=ctx.measureText(nm).width,Wd=bd+tw+fs*.9;
-    const box=[sx-Wd/2,sy,Wd,r*2],ov=boxes.some(o=>box[0]<o[0]+o[2]&&o[0]<box[0]+box[2]&&box[1]<o[1]+o[3]&&o[1]<box[1]+box[3]);
-    if(!ov){boxes.push(box);ctx.fillStyle='#fffd';ctx.strokeStyle='#282139';ctx.lineWidth=1.5*U;ctx.beginPath();ctx.roundRect(box[0],sy,Wd,r*2,r);ctx.fill();ctx.stroke();
-      ctx.fillStyle=hue(f.no);ctx.beginPath();ctx.roundRect(box[0],sy,bd,r*2,r);ctx.fill();
-      ctx.fillStyle='#fff';ctx.textAlign='center';ctx.fillText(f.no,box[0]+bd/2,sy+r+U*.5);
-      ctx.fillStyle='#282139';ctx.textAlign='left';ctx.fillText(nm,box[0]+bd+fs*.35,sy+r+U*.5)}
-    else if(list.length<=30){ctx.fillStyle=hue(f.no);ctx.strokeStyle='#fff';ctx.lineWidth=1.5*U;ctx.beginPath();ctx.arc(sx,sy+r*.7,r*.7,0,7);ctx.fill();ctx.stroke()}
+function labels(list,big,dt){
+  // 全員に何か出す。名前（長い名前は省略）→ 短縮名（3文字）→ 番号だけ → 小さい番号だけ、の順に、置ける一番詳しいものを選ぶ。
+  // 置き場所は足元→下にずらす→頭の上→左右の順に空きを探す。前フレームで出ていた人を先に置き（同じ状態では古い順）、
+  // 新しく出す人は周りに余白があるときだけにするので、出たり消えたりしにくい。切り替えは短くフェードする。
+  const small=aliveN()>12,fs=(big?20:small?10:13)*U,r=fs*.95,h=r*2.2,mx=big?20:small?6:10,boxes=[],
+    hit=(b,m)=>boxes.some(o=>b[0]-m<o[0]+o[2]&&o[0]<b[0]+b[2]+m&&b[1]-m<o[1]+o[3]&&o[1]<b[1]+b[3]+m),
+    cut=(s,n)=>s.length>n?s.slice(0,n)+'…':s,font=sc=>ctx.font=`700 ${fs*sc}px sans-serif`;
+  ctx.textBaseline='middle';
+  for(const f of list.slice().sort((a,b)=>(b.lv||0)-(a.lv||0)||(a.lv&&b.lv?a.ts-b.ts:b.y-a.y))){
+    const sx=(f.x-cam.x)*cam.s+LW/2,sy=(f.y-cam.y)*cam.s+LH/2+4*U,up=-(SZ*ds(f)*cam.s+r*2+6*U);
+    const full=cut(f.name,mx),short=cut(f.name,3),was=f.lv||0,m=was?0:r*.4; // m: 新規に出すときの余白
+    const tiers=[[3,full,1],...(short!==full?[[2,short,1]]:[]),[1,'',1],[1,'',.72]];
+    f.lv=0;
+    tier:for(const[lv,nm,sc]of tiers){
+      font(sc);const rr=r*sc,bd=Math.max(rr*2,ctx.measureText(f.no).width+fs*sc*.8),w=nm?bd+ctx.measureText(nm).width+fs*sc*.9:bd;
+      for(const[cx,cy]of[[0,0],[0,h],[0,up],[-.6,0],[.6,0],[-.6,h],[.6,h],[-.6,up],[.6,up],[0,2*h],[-.6,2*h],[.6,2*h],[0,up-h]]){
+        const b=[sx-w/2+cx*w,sy+cy,w,rr*2];
+        if(!hit(b,m)){boxes.push(b);f.lv=lv;f.gm={x:b[0],y:b[1],w,bd,nm,sc};break tier}
+      }
+    }
+    if(f.lv&&!was)f.ts=T;
   }
+  const k=Math.min(1,dt*8);
+  for(const f of list){
+    f.al=(f.al||0)+((f.lv?1:0)-(f.al||0))*k;
+    const g=f.gm;if(!(f.al>.03&&g))continue;
+    const rr=r*g.sc;font(g.sc);ctx.globalAlpha=f.al;ctx.lineWidth=1.5*U;
+    if(g.nm){ // 番号の丸＋名前
+      ctx.fillStyle='#fffd';ctx.strokeStyle='#282139';ctx.beginPath();ctx.roundRect(g.x,g.y,g.w,rr*2,rr);ctx.fill();ctx.stroke();
+      ctx.fillStyle=hue(f.no);ctx.beginPath();ctx.roundRect(g.x,g.y,g.bd,rr*2,rr);ctx.fill();
+      ctx.fillStyle='#282139';ctx.textAlign='left';ctx.fillText(g.nm,g.x+g.bd+fs*g.sc*.35,g.y+rr+U*.5);
+    }else{ // 番号だけ
+      ctx.fillStyle=hue(f.no);ctx.strokeStyle='#fff';ctx.beginPath();ctx.roundRect(g.x,g.y,g.bd,rr*2,rr);ctx.fill();ctx.stroke();
+    }
+    ctx.fillStyle='#fff';ctx.textAlign='center';ctx.fillText(f.no,g.x+g.bd/2,g.y+rr+U*.5);
+  }
+  ctx.globalAlpha=1;
 }
 function updateCam(dt){
   const A=F.filter(f=>f.alive);let tx=LW/2,ty=LH/2,ts=1;
@@ -253,7 +274,7 @@ function draw(dt){
   ctx.textAlign='center';ctx.textBaseline='middle';ctx.lineJoin='round';
   for(const p of pops){const s=Math.max(SZ*.3,12*U/cam.s);ctx.font=`900 ${s}px sans-serif`;ctx.strokeStyle='#282139';ctx.lineWidth=s/5;ctx.fillStyle='#ffd23f';const y=p.y-(.7-p.t)*40;ctx.strokeText(p.s,p.x,y);ctx.fillText(p.s,p.x,y)}
   ctx.restore();
-  if(phase!=='prep')labels(order.filter(f=>f.alive),phase==='end');
+  if(phase!=='prep')labels(order.filter(f=>f.alive),phase==='end',dt);
   for(const c of conf){c.y+=c.v*dt*U;c.x+=Math.sin(c.y/40+c.p)*40*dt*U;c.r+=dt*4;ctx.fillStyle=c.c;ctx.save();ctx.translate(c.x,c.y);ctx.rotate(c.r);ctx.fillRect(-4*U,-2*U,8*U,4*U);ctx.restore()}
   conf=conf.filter(c=>c.y<LH+20);
 }
@@ -289,8 +310,9 @@ function frame(ts){
 function toPrep(){
   prepScene();
   $('prep').hidden=false;$('alive').hidden=true;$('quit').hidden=true;$('win').hidden=true;$('rank').hidden=true;$('final').hidden=true;$('log').innerHTML='';$('banner').style.opacity=0;
+  fsOff(); // 入力欄は全画面の外にあるので、準備画面に戻るときは全画面を解除する
 }
-$('start').onclick=()=>{unlock();parse();if(!$('start').disabled)newMatch()};
+$('start').onclick=()=>{unlock();parse();if(!$('start').disabled){newMatch();if(isPhone())fsOn()}};
 $('again').onclick=()=>{unlock();newMatch()};
 $('edit').onclick=$('quit').onclick=toPrep;
 $('reset').onclick=()=>{if(!confirm('入力した参加者をすべて消して、最初の画面に戻します。よろしいですか？'))return;$('names').value='';parse();toPrep()};
@@ -299,12 +321,11 @@ $('reset').onclick=()=>{if(!confirm('入力した参加者をすべて消して�
 const st=$('stage');
 const isFs=()=>document.fullscreenElement===st||st.classList.contains('pfs');
 const fsLabel=()=>{$('fs').textContent=isFs()?'全画面を解除':'全画面';$('fs').setAttribute('aria-label',isFs()?'全画面表示を解除':'全画面表示に切り替え')};
-$('fs').onclick=()=>{
-  if(isFs()){document.fullscreenElement?document.exitFullscreen():st.classList.remove('pfs')}
-  else if(st.requestFullscreen)st.requestFullscreen().catch(()=>{st.classList.add('pfs');fsLabel()});
-  else st.classList.add('pfs');
-  fsLabel();
-};
+// スマホは本物の全画面にせず pfs（画面いっぱい）にする。縦持ちのときは CSS で横向きに回転して表示する（iPhone も同じ）
+const isPhone=()=>matchMedia('(pointer:coarse)').matches&&Math.min(innerWidth,innerHeight)<600;
+function fsOn(){if(isPhone()||!st.requestFullscreen)st.classList.add('pfs');else st.requestFullscreen().catch(()=>{st.classList.add('pfs');fsLabel()});fsLabel()}
+function fsOff(){if(document.fullscreenElement)document.exitFullscreen().catch(()=>{});st.classList.remove('pfs');fsLabel()}
+$('fs').onclick=()=>isFs()?fsOff():fsOn();
 document.addEventListener('fullscreenchange',fsLabel);
 
 parse();toPrep();requestAnimationFrame(frame);load();
