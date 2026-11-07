@@ -85,7 +85,7 @@ function newMatch(){
   });
   winner=F[win];
   T=W=0;cnt=D<10?1:3;pops=[];conf=[];phase='count';finalShown=false;cam={x:LW/2,y:LH/2,s:1};
-  $('log').innerHTML='';$('win').hidden=true;$('final').hidden=true;$('banner').style.opacity=0;$('banner').textContent='';
+  $('log').innerHTML='';$('win').hidden=true;$('rank').hidden=true;$('final').hidden=true;$('banner').style.opacity=0;$('banner').textContent='';
   $('prep').hidden=true;$('alive').hidden=false;$('quit').hidden=false;updAlive();
 }
 const aliveN=()=>F.reduce((a,f)=>a+f.alive,0);
@@ -98,7 +98,7 @@ function hit(a,b){
   if(pops.length<25&&(F.length<20||rf()<.4))pops.push({x:b.x,y:b.y-SZ*.7,t:.7,s:SND[WPS[a.wp].id]});
   if(b.win)return; // 勝者は抽選で決定済み。戦闘では脱落しない
   if(--b.hp<=0){
-    b.alive=false;b.koT=0;b.kv=[(b.x-a.x)/d*380*m,(b.y-a.y)/d*100*m-40*m];
+    b.rk=aliveN();b.alive=false;b.koT=0;b.kv=[(b.x-a.x)/d*380*m,(b.y-a.y)/d*100*m-40*m];
     const l=$('log');l.insertAdjacentHTML('beforeend',`<div>${esc(b.name)} 脱落！</div>`);while(l.children.length>3)l.firstChild.remove();
     updAlive();
   }
@@ -108,7 +108,8 @@ function forceFinish(){ // 制限時間：残りの敗者をまとめて吹っ�
   if(D>=5&&L.length<=1)return; // 決勝の相手はそのまま決着させる
   const keep=D>=5&&L.length>1?L[rnd(L.length)]:null; // 決勝の相手を1人だけ残す
   if(keep)keep.hp=1;
-  for(const f of L)if(f!==keep){f.alive=false;f.koT=0;const a=rf()*6.28;f.kv=[Math.cos(a)*400,Math.sin(a)*200-60]}
+  const G=shuffle(L.filter(f=>f!==keep)).sort((p,q)=>q.hp-p.hp),r0=aliveN()-G.length; // 同時脱落は残りHPが多い順（同点はランダム）
+  G.forEach((f,i)=>{f.rk=r0+i+1;f.alive=false;f.koT=0;const a=rf()*6.28;f.kv=[Math.cos(a)*400,Math.sin(a)*200-60]});
   updAlive();
 }
 
@@ -221,8 +222,13 @@ function showWin(){
   const w=winner;
   $('wname').innerHTML=badge(w.no)+esc(w.name);
   $('wsub').textContent=`${CHS[w.ch].name} ／ ${WPS[w.wp].name}`;
-  $('win').hidden=false;
+  winner.rk=1;
+  const med=['🥇','🥈','🥉'];
+  $('rlist').innerHTML=F.slice().sort((a,b)=>a.rk-b.rk).map(f=>`<li><b>${med[f.rk-1]||f.rk}</b>${badge(f.no)}<span class="n">${esc(f.name)}</span><small>${esc(CHS[f.ch].name)}</small></li>`).join('');
+  $('rank').hidden=true;$('win').hidden=false;
 }
+$('showrank').onclick=()=>{$('rank').hidden=false;$('rlist').scrollTop=0};
+$('closerank').onclick=()=>$('rank').hidden=true;
 
 // 実時間 W が設定時間 D に収まるよう、残り人数が直線的に減る目標に合わせてシミュ速度を調整する
 let last=0;
@@ -242,7 +248,7 @@ function frame(ts){
 // ---- 画面遷移 ----
 function toPrep(){
   prepScene();
-  $('prep').hidden=false;$('alive').hidden=true;$('quit').hidden=true;$('win').hidden=true;$('final').hidden=true;$('log').innerHTML='';$('banner').style.opacity=0;
+  $('prep').hidden=false;$('alive').hidden=true;$('quit').hidden=true;$('win').hidden=true;$('rank').hidden=true;$('final').hidden=true;$('log').innerHTML='';$('banner').style.opacity=0;
 }
 $('start').onclick=()=>{parse();if(!$('start').disabled)newMatch()};
 $('again').onclick=newMatch;

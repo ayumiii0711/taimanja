@@ -48,7 +48,15 @@ button:disabled{opacity:.45;cursor:not-allowed}
 #win .t{font-size:max(14px,5cqw);font-weight:900;color:var(--acc)}
 #win .nm{font-size:max(22px,9cqw);font-weight:900;color:#fff;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #win .sub{font-size:max(11px,2.4cqw);color:#fff;opacity:.85}
-#win .row{display:flex;gap:2cqw;width:100%;justify-content:center}
+#win .row{display:flex;flex-wrap:wrap;gap:1.5cqw;width:100%;justify-content:center}
+#rank{position:absolute;inset:0;background:#282139f2;display:flex;flex-direction:column;align-items:center;gap:1.5cqw;padding:2cqw 4cqw;z-index:2}
+#rank .t{font-size:max(15px,4cqw);font-weight:900;color:var(--acc)}
+#rlist{flex:1;min-height:0;width:100%;max-width:640px;overflow-y:auto;margin:0;padding:0;list-style:none;color:#fff;font-size:max(13px,2.6cqw)}
+#rlist li{display:flex;align-items:center;gap:.4em;padding:.3em .2em;border-bottom:1px solid #fff3}
+#rlist b{min-width:2.2em;text-align:center}
+#rlist .n{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#rlist small{opacity:.7;white-space:nowrap}
+#rank button{font-size:max(13px,2.8cqw);padding:.4em 1.4em;min-height:40px}
 #win button{font-size:max(13px,2.8cqw);padding:.5em .9em;min-height:44px}
 [hidden]{display:none!important}
 .badge{display:inline-flex;align-items:center;justify-content:center;min-width:1.6em;height:1.6em;padding:0 .35em;border-radius:999px;color:#fff;font-weight:700;border:.15em solid #fff;margin-right:.3em;font-size:.7em;-webkit-text-stroke:0;text-shadow:none}
@@ -85,7 +93,12 @@ summary{cursor:pointer;font-weight:700;padding:8px 0}
       <div class="t">🎉 当選者 🎉</div>
       <div class="nm" id="wname"></div>
       <div class="sub" id="wsub"></div>
-      <div class="row"><button id="again">同じメンバーでもう一度</button><button id="edit" class="sec">参加者を編集</button></div>
+      <div class="row"><button id="showrank">ランキングを見る</button><button id="again">同じメンバーでもう一度</button><button id="edit" class="sec">参加者を編集</button></div>
+    </div>
+    <div id="rank" hidden>
+      <div class="t">ランキング</div>
+      <ol id="rlist"></ol>
+      <button id="closerank" class="sec">閉じる</button>
     </div>
   </div></div>
   <section id="prep">
