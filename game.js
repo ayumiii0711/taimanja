@@ -119,9 +119,13 @@ function newMatch(){
     return mk(i+1,name,i===monkey?MONKEY:OTHER[ct[ci++]],wt[i],x,y,{hp:Math.round(7*Math.min(6,Math.max(1,D/15))),win:i===win,dir:x<LW/2?1:-1,spd:SZ*(.95+.3*rf())});
   });
   winner=F[win];
-  T=W=0;cnt=D<10?1:3;pops=[];conf=[];phase='count';finalShown=brawled=false;cam={x:LW/2,y:LH/2,s:1};
+  T=W=0;pops=[];conf=[];phase='ready';finalShown=brawled=false; // 名前つきキャラを並べて待機。「Ready GO!」で startCount へcam={x:LW/2,y:LH/2,s:1};
   $('log').innerHTML='';$('win').hidden=true;$('rank').hidden=true;$('final').hidden=true;$('banner').style.opacity=0;$('banner').textContent='';
-  $('prep').hidden=true;$('alive').hidden=false;$('quit').hidden=false;updAlive();
+  $('prep').hidden=true;$('alive').hidden=false;$('quit').hidden=false;$('go').hidden=false;$('alive').textContent=`参加者 ${n}人`;
+}
+function startCount(){ // 「Ready GO!」→ 3、2、1、スタート！（ゴングはスタートの瞬間に step で鳴る）
+  if(phase!=='ready')return;
+  unlock();cnt=D<10?1:3;phase='count';$('go').hidden=true;updAlive();
 }
 const aliveN=()=>F.reduce((a,f)=>a+f.alive,0);
 const updAlive=()=>$('alive').textContent=`残り ${aliveN()}人`;
@@ -154,7 +158,7 @@ function forceFinish(){ // 制限時間：残りの敗者をまとめて吹っ�
 
 function step(dt){
   T+=dt;
-  if(phase==='prep'){for(const f of F)f.ph+=dt*12;return}
+  if(phase==='prep'||phase==='ready'){for(const f of F)f.ph+=dt*12;return}
   if(phase==='count'){cnt-=dt;const k=Math.ceil(cnt);if(k>0&&$('banner').textContent!==String(k))banner(String(k));if(cnt<=0){phase='fight';banner('スタート！',900);gong('gongS')}return}
   for(const f of F)if(f.koT>=0){f.koT+=dt;f.x+=f.kv[0]*dt;f.y+=f.kv[1]*dt}
   pops=pops.filter(p=>(p.t-=dt)>0);
@@ -199,7 +203,7 @@ function drawF(f){
     pose='attack';const u=Math.min(1,f.t/.45),e=1-(1-Math.min(1,u/.5))**3;
     if(w.id==='zabuton'){a=u*14;ax=140*Math.sin(Math.PI*u)}else a=-1.9+3*e;
   }else if(f.state==='run'){pose='run';hop=Math.abs(Math.sin(f.ph))*(f.ch===MONKEY?16:9)*m;a=-.8}
-  else hop=(phase==='count'||phase==='prep')?Math.abs(Math.sin(T*5+f.ph))*4*m:0;
+  else hop=(phase==='count'||phase==='prep'||phase==='ready')?Math.abs(Math.sin(T*5+f.ph))*4*m:0;
   if(alpha<=0)return;
   ctx.save();ctx.globalAlpha=alpha;
   ctx.fillStyle='#0004';ctx.beginPath();ctx.ellipse(f.x,f.y,SZ*ds(f)*.22*(1-z/(400*m)),SZ*ds(f)*.07,0,0,7);ctx.fill();
@@ -309,11 +313,12 @@ function frame(ts){
 // ---- 画面遷移 ----
 function toPrep(){
   prepScene();
-  $('prep').hidden=false;$('alive').hidden=true;$('quit').hidden=true;$('win').hidden=true;$('rank').hidden=true;$('final').hidden=true;$('log').innerHTML='';$('banner').style.opacity=0;
+  $('prep').hidden=false;$('alive').hidden=true;$('quit').hidden=true;$('go').hidden=true;$('win').hidden=true;$('rank').hidden=true;$('final').hidden=true;$('log').innerHTML='';$('banner').style.opacity=0;
   fsOff(); // 入力欄は全画面の外にあるので、準備画面に戻るときは全画面を解除する
 }
 $('start').onclick=()=>{unlock();parse();if(!$('start').disabled){newMatch();if(isPhone())fsOn()}};
 $('again').onclick=()=>{unlock();newMatch()};
+$('go').onclick=startCount;
 $('edit').onclick=$('quit').onclick=toPrep;
 $('reset').onclick=()=>{if(!confirm('入力した参加者をすべて消して、最初の画面に戻します。よろしいですか？'))return;$('names').value='';parse();toPrep()};
 
