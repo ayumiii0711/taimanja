@@ -325,7 +325,8 @@ $('reset').onclick=()=>{if(!confirm('入力した参加者をすべて消して�
 // ---- 全画面（iPhone など非対応端末は画面いっぱい表示で代用）----
 const st=$('stage');
 const isFs=()=>document.fullscreenElement===st||st.classList.contains('pfs');
-const fsLabel=()=>{$('fs').textContent=isFs()?'全画面を解除':'全画面';$('fs').setAttribute('aria-label',isFs()?'全画面表示を解除':'全画面表示に切り替え')};
+const fsLabel=()=>{$(isFs()?'frame':'gowrap').appendChild($('go')); // GOボタンは全画面のときだけ画面内（右下）、通常は画面の下
+$('fs').textContent=isFs()?'全画面を解除':'全画面';$('fs').setAttribute('aria-label',isFs()?'全画面表示を解除':'全画面表示に切り替え')};
 // スマホは本物の全画面にせず pfs（画面いっぱい）にする。縦持ちのときは CSS で横向きに回転して表示する（iPhone も同じ）
 const isPhone=()=>matchMedia('(pointer:coarse)').matches&&Math.min(innerWidth,innerHeight)<600;
 function fsOn(){if(isPhone()||!st.requestFullscreen)st.classList.add('pfs');else st.requestFullscreen().catch(()=>{st.classList.add('pfs');fsLabel()});fsLabel()}
